@@ -1,0 +1,174 @@
+---
+title: "Scaling up reproducible research for single cell transcriptomics using MetaNeighbor (Protocol 2)"
+output:
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+graphics: yes
+---
+
+# Protocol 2: Assessing cell type replicability against a pre-trained reference taxonomy
+
+Protocol 2 demonstrates how to assess cell types of a newly annotated dataset against a reference cell type taxonomy. Here we consider the cell type taxonomy established by the Brain Initiative Cell Census Network (BICCN) in the mouse primary motor cortex. The BICCN taxonomy was defined across a compendium of datasets sampling across multiple modalities (transcriptomics and epigenomics), it constitutes one of the richest neuronal resources currently available. When matching against a reference taxonomy, we assume that the reference is of higher resolution than the query dataset, i.e. the query dataset samples the same set or a subset of cells compared to the reference.
+
+## Step 1 - Pre-train a reference MetaNeighbor model.
+
+1. We start by loading an already merged SCE object. The full code for generating the dataset is available here XXX, the dataset itself can be downloaded here XXX.
+
+```{r eval = TRUE}
+library(SingleCellExperiment)
+
+biccn_data = readRDS("full_biccn_hvg.rds")
+biccn_data
+table(biccn_data$study_id)
+head(colData(biccn_data))
+```
+
+The BICCN data contains 7 datasets totaling 482,712 cells. There are multiple sets of cell type labels depending on resolution (class, subclass, cluster) or type of labels (independent labels or labels defined from joint clustering). Note that, to reduce memory usage, we have already computed and restricted the dataset to a set of 310 highly variable genes.
+
+2. We create pre-trained models with the "trainModel", which has identical parameters as "MetaNeighborUS". Here, we choose to focus on two sets of cell types: subclasses from the joint clustering (medium resolution, e.g., Vip interneurons, L2/3 IT excitatory neurons), and clusters from the joint clustering (high resolution, e.g., Chandelier cells).
+
+```{r eval = TRUE}    
+library(MetaNeighbor)
+#devtools::load_all("~/projects/metaneighbor/MetaNeighbor")
+
+pretrained_model = MetaNeighbor::trainModel(
+    var_genes = rownames(biccn_data), dat = biccn_data,
+    study_id = biccn_data$study_id, cell_type = biccn_data$joint_subclass_label
+)
+write.table(pretrained_model, "pretrained_biccn_subclasses.txt")
+
+pretrained_model = MetaNeighbor::trainModel(
+    var_genes = rownames(biccn_data), dat = biccn_data,
+    study_id = biccn_data$study_id, cell_type = biccn_data$joint_cluster_label
+)
+write.table(pretrained_model, "pretrained_biccn_clusters.txt")
+```
+
+For simplicity of use, we store the pretrained models to file using the "write.table" function.
+
+## Step 2 - Compare annotations to pre-trained taxonomy
+
+3. We start by loading our query dataset (Tasic 2016, neurons from mouse primary visual cortex, available in the scRNAseq package) and our pre-trained subclass and cluster taxonomies.
+
+```{r eval = TRUE}
+library(scRNAseq)
+tasic = TasicBrainData(ensembl = FALSE, location = FALSE)
+tasic$study_id = "tasic"
+biccn_subclasses = read.table("pretrained_biccn_subclasses.txt", check.names = FALSE)
+biccn_clusters = read.table("pretrained_biccn_clusters.txt", check.names = FALSE)
+```
+
+Note that we add a "study_id" column to the Tasic metadata, as this information will be needed later by MetaNeighbor.
+
+4. To run MetaNeighbor, we use the "MetaNeighborUS" function but, compared to protocol 1, we provide a pre-trained model instead of a set of highly variable genes (which are already contained in the pre-trained model). We start by checking if Tasic cell types are consistent with the BICCN subclass resolution.
+
+```{r eval = TRUE}
+library(MetaNeighbor)
+#devtools::load_all("~/projects/metaneighbor/MetaNeighbor")
+
+aurocs = MetaNeighborUS(
+  trained_model = biccn_subclasses, dat = tasic,
+  study_id = tasic$study_id, cell_type = tasic$primary_type,
+  fast_version = TRUE
+)
+```
+
+5. We visualize AUROCs as a rectangular heatmap, with the reference taxonomy as columns and query cell types as rows.
+
+```{r eval = TRUE, fig.width=7, fig.height=6.5}
+plotHeatmapPretrained(aurocs)
+```
+
+As in Protocol 1, we start by looking for evidence of global structure in the dataset. Here we recognize 3 red blocks, which correspond to non-neurons (top left), inhibitory neurons (middle) and excitatory neurons (bottom right). The presence of sub-blocks inside the 3 global blocks suggest that cell types can be matched more finely. For example, inside the inhibitory block, we can recognize sub-blocks corresponding to CGE-derived interneurons (Vip, Sncg and Lamp5 in the BICCN taxonomy) and MGE-derived interneurons (Pvalb and Sst in the BICCN taxonomy).
+
+6. We refine AUROCs by focusing on inhibitory neurons. We use two utility functions ("splitTrainClusters" and "splitTestClusters") to select the relevant cell types.
+
+```{r eval = TRUE, fig.width=7, fig.height=6.5}
+gabaergic_tasic = splitTestClusters(aurocs, k = 4)[[2]]
+gabaergic_biccn = splitTrainClusters(aurocs[gabaergic_tasic,], k = 4)[[4]]
+keep_cell = makeClusterName(tasic$study_id, tasic$primary_type) %in% gabaergic_tasic
+tasic_subdata = tasic[, keep_cell]
+aurocs = MetaNeighborUS(
+  trained_model = biccn_subclasses[, gabaergic_biccn],
+  dat = tasic_subdata, study_id = tasic_subdata$study_id,
+  cell_type = tasic_subdata$primary_type, fast_version = TRUE
+)
+plotHeatmapPretrained(aurocs, cex = 0.7)
+```
+
+The heatmap suggests that there is a broad agreement at the subclass level between the BICCN MOp taxonomy and the Tasic 2016 dataset, with Ndnf subtypes, Igtp and Smad3 cell types from the Tasic dataset matching with the BICCN Lamp5 subclass.
+
+7. The previous heatmaps suggest that all Tasic cell types can be matched with one BICCN subclass. We now go one step further and ask whether inhibitory cell types correspond to one of the BICCN clusters.
+
+```{r eval = TRUE, fig.width=7, fig.height=6.5}
+aurocs = MetaNeighborUS(trained_model = biccn_clusters,
+                        dat = tasic_subdata,
+                        study_id = tasic_subdata$study_id,
+                        cell_type = tasic_subdata$primary_type,
+                        fast_version = TRUE)
+plotHeatmapPretrained(aurocs, cex = 0.7)
+```
+
+Here the heatmap is difficult to interpret due to the large number of BICCN cell types (output omitted here). Because there is a limited number of cell types in the query dataset, we directly investigate the top hits for each query cell type.
+
+```{r eval = TRUE}
+head(sort(aurocs["tasic|Sst Chodl",], decreasing = TRUE), 10)
+head(sort(aurocs["tasic|Pvalb Cpne5",], decreasing = TRUE), 10)
+```
+
+We note two properties of matching against a pre-trained reference. First, replicable cell types have a clear top match in each of the reference dataset. Sst Chodl (long-projecting interneurons) match to similarly named clusters in the BICCN with an AUROC > 0.9999, Pvalb Cpne5 (Chandelier cells) match with the Pvalb Vipr2_2 cluster with AUROC > 0.93. Second, we have to be beware of false positives. For example, Sst Chodl secondarily matches with the L6b Ror1 cell types with AUROC > 0.98. When we use a pre-trained model, we only compute AUROCs with the reference data as the train data, so we cannot identify reciprocal hits. If we had been able to use "Tasic|Sst Chodl" as the training cluster, its votes would have gone heavily in favor of the BICCN's Sst Chodl, making L6b Ror1 a low AUROC match. Because of the low dimensionality of gene expression space, we expect false positive hits to occur just by chance (cell types reusing similar pathways) when a cell type is missing in the query dataset. Here L6b Ror1 (an excitatory type) had no natural match with the Tasic inhibitory cell types and voted for its closest match, long-projecting interneurons.
+
+There are three alternatives to separate true hits from false positive hits. First, if a cell type is highly replicable, it will have a clear top matching cluster in the reference dataset. Second, if the query dataset is known to be a particular subset of the reference dataset (e.g., inhibitory neurons as was the case here), we recommend subsetting the reference taxonomy to that subset. Third, if the first two solutions don't work, it is possible to go back to reciprocal testing by using the full BICCN dataset instead of the pre-trained reference.
+
+We illustrate the first solution in the case of Chandelier cells.
+
+```{r eval = TRUE, fig.width=7, fig.height=6.5}
+chandelier_hits = aurocs["tasic|Pvalb Cpne5",]
+is_chandelier = getCellType(names(chandelier_hits)) == "Pvalb Vipr2_2"
+hist(log10(1-chandelier_hits[!is_chandelier]), breaks = 20,
+    xlab = "log10(1-AUROC)", xlim = range(log10(1-chandelier_hits)))
+abline(v = log10(1-chandelier_hits[is_chandelier]), col = "red")
+```
+
+AUROC values do not scale linearly, when they are getting close to 1, the difference between 0.98 and 0.9999 is substantial. To illustrate AUROC difference for such extreme values, a logarithmic or logistic scaling is more appropriate. Here it is clear that the best matching BICCN cluster ("Pvalb Vipr2_2") is order of magnitudes better than other clusters, suggesting very strong replicability.
+
+9. The second solution to avoid false positive hits is to subset the reference to cell types that reflect the composition of the query datasets. Since we are looking at inhibitory neurons, we can restrict the BICCN taxonomy to inhibitory clusters, which name all start with "Pvalb", "Sst", "Lamp5", "Vip" or "Sncg".
+
+```{r eval = TRUE}
+is_gaba = grepl("^(Pvalb|Sst|Lamp5|Vip|Sncg)", getCellType(colnames(biccn_clusters)))
+biccn_gaba = biccn_clusters[, is_gaba]
+aurocs = MetaNeighborUS(trained_model = biccn_gaba,
+                        dat = tasic_subdata,
+                        study_id = tasic_subdata$study_id,
+                        cell_type = tasic_subdata$primary_type,
+                        fast_version = TRUE)
+head(sort(aurocs["tasic|Sst Chodl",], decreasing = TRUE), 10)
+head(sort(aurocs["tasic|Pvalb Cpne5",], decreasing = TRUE), 10)
+```
+
+Now secondary hits are all inhibitory clusters. Again we note that there is a significant gap between the best hit and the secondary hit, and that secondary hit are closely related cell types (Sst subtype for Sst Chodl, secondary Chandelier cell type Pvalb Vipr2_1 for Pvalb Cpne5).
+
+10. To look for a more precise mapping between the query cell types and reference cell types, we use one-vs-best AUROC, which will automatically match the best hit against the best secondary hit, providing a stringent assessment of replicability.
+
+```{r eval = TRUE, fig.width=7, fig.height=6.5}
+best_hits = MetaNeighborUS(trained_model = biccn_gaba,
+                        dat = tasic_subdata,
+                        study_id = tasic_subdata$study_id,
+                        cell_type = tasic_subdata$primary_type,
+                        one_vs_best = TRUE,
+                        fast_version = TRUE)
+plotHeatmapPretrained(best_hits)
+```
+
+Now the hit structure is much sparser, suggesting that most Tasic cell types match with one or several BICCN clusters.
+
+```{r eval = TRUE}
+head(sort(best_hits["tasic|Sst Chodl",], decreasing = TRUE), 10)
+head(sort(best_hits["tasic|Pvalb Cpne5",], decreasing = TRUE), 10)
+head(sort(best_hits["tasic|Sst Tacstd2",], decreasing = TRUE), 10)
+```
+
+Using this more stringent assessment, we confirm that Sst Chodl strongly replicates inside the BICCN (one-vs-best AUROC ~ 1, best secondary hit = 0.41), same for Pvalb Cpne5 (one-vs-best AUROC > 0.74, best secondary hit = 0.63), while for example Sst Tacstd2 corresponds to multiple BICCN subtypes (including Sst C1ql3_1, Sst C1ql3_2, AUROC > 0.95).
+
+Pre-training a MetaNeighbor model thus provides a rigorous, fast and simple way to query a large reference dataset and obtain quantitative estimations of the replicability of newly annotated clusters.

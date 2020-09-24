@@ -1,6 +1,10 @@
 *.rds
 .ipynb_checkpoints/
 
+meta_clusters.pdf
+pretrained_biccn_*.txt
+functional_aurocs.txt
+
 data/biccn_hvgs.txt
 data/joint_annotation/
 data/scCv2/
