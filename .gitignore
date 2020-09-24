@@ -1,0 +1,12 @@
+*.rds
+.ipynb_checkpoints/
+
+data/biccn_hvgs.txt
+data/joint_annotation/
+data/scCv2/
+data/scCv3/
+data/scSS/
+data/snCv2/
+data/snCv3M/
+data/snCv3Z/
+data/snSS/
