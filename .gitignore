@@ -5,6 +5,9 @@ meta_clusters.pdf
 pretrained_biccn_*.txt
 functional_aurocs.txt
 
+*_files/
+*.md
+
 data/biccn_hvgs.txt
 data/joint_annotation/
 data/scCv2/
@@ -14,3 +17,7 @@ data/snCv2/
 data/snCv3M/
 data/snCv3Z/
 data/snSS/
+data/go_to_matrix.R
+data/go_mouse.mtx
+data/go_mouse_row_labels.txt
+data/go_mouse_col_labels.txt

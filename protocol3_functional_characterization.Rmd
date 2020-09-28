@@ -3,9 +3,20 @@ title: "Scaling up reproducible research for single cell transcriptomics using M
 output:
   pdf_document:
     fig_caption: yes
-    number_sections: yes
 graphics: yes
 ---
+
+```{r setup, include = FALSE}
+knit_print.data.frame = function(x, ...) {
+  res = paste(c("", "", knitr::kable(x, digits = 2)), collapse = "\n")
+  knitr::asis_output(res)
+}
+
+registerS3method(
+  "knit_print", "data.frame", knit_print.data.frame,
+  envir = asNamespace("knitr")
+)
+```
 
 # Protocol 3: Functional characterization of replicating clusters
 
@@ -15,7 +26,7 @@ Protocol 3 demonstrates how to characterize functional gene sets contributing to
 
 1. To compute the functional characterization of clusters, we first need an ensemble of gene sets sampling relevant biological pathways. In this protocol we will consider the Gene Ontology (GO) annotation for mouse. The scripts used to build up-to-date gene sets are here XXX, gene sets can be downloaded directly here XXX.  
 
-```{r eval = TRUE}
+```{r load_go, eval=TRUE}
 go_sets = readRDS("go_mouse.rds")
 ```
 
@@ -23,7 +34,7 @@ Gene sets are stored as a named list, each element of the list corresponds to a 
 
 2. Then we load our dataset containing inhibitory neurons from the BICCN. The scripts used to build the dataset can be found here XXX, the dataset can be downloaded here XXX.
 
-```{r eval = TRUE}
+```{r load_biccn, eval=TRUE}
 library(SingleCellExperiment)
 biccn_gaba = readRDS("biccn_gaba.rds")
 dim(biccn_gaba)
@@ -31,7 +42,7 @@ dim(biccn_gaba)
 
 3. Next we restrict our gene sets to genes that are present in the dataset. We then filter gene sets to obtain gene sets of meaningful size: large enough to learn expression profiles (> 10), small enough to represent specific biological function or processes (< 100).
 
-```{r eval = TRUE}
+```{r filter_genes, eval=TRUE}
 known_genes = rownames(biccn_gaba)
 go_sets = lapply(go_sets, function(gene_set) { gene_set[gene_set %in% known_genes] })
 min_size = 10
@@ -45,7 +56,7 @@ length(go_sets)
 
 4. Once the gene set list is ready, we run the supervised "MetaNeighbor" function. Its inputs are similar to "MetaNeighborUS", but it assumes that cell types have already been matched across datasets (i.e., they have identical names). Here we will use joint BICCN subclasses, for which names have been normalized across datasets ("Pvalb", "Sst", "Sst Chodl", "Vip", "Lamp5", "Sncg"). Note that, because we are testing close to 6,500 gene sets, this step is expected to take a long time for large datasets. We recommend using this function inside a script and always save results to a file as soon as it's done.
 
-```{r eval = TRUE}
+```{r run_metaneighbor, eval=TRUE}
 library(MetaNeighbor)
 #devtools::load_all("~/projects/metaneighbor/MetaNeighbor")
 
@@ -63,13 +74,13 @@ write.table(aurocs, "functional_aurocs.txt")
 
 Later, results can be retrieved with the "read.table" function:
 
-```{r eval = TRUE}
+```{r load_results, eval=TRUE}
 aurocs = read.table("functional_aurocs.txt")
 ```
 
 5. We use the "plotBPlot" function on the first 100 gene sets to rapidly visualize how replicability depends on gene sets.
 
-```{r eval = TRUE, fig.width=7, fig.height=6.5}
+```{r bean_plot, eval=TRUE, fig.width=7, fig.height=6.5}
 plotBPlot(head(aurocs, 100))
 ```
 
@@ -77,24 +88,24 @@ We note that, on average, gene sets contribute moderately to replicability (AURO
 
 6. To focus on gene sets that contribute highly to specificity, we create a summary table containing, for each gene set, cell type specific AUROCs, average AUROC across all cell types and gene set size.
 
-```{r eval = TRUE}
+```{r result_table, eval=TRUE}
 gs_size = sapply(go_sets, length)
 aurocs_df = as.data.frame(aurocs)
-aurocs_df$average_auroc = rowMeans(aurocs)
-aurocs_df$gs_size = gs_size[rownames(aurocs)]
+aurocs_df$average = rowMeans(aurocs)
+aurocs_df$n_genes = gs_size[rownames(aurocs)]
 ```
 
 We then order gene set by AUROC and look at top scoring gene sets:
 
-```{r eval = TRUE}
-head(aurocs_df[order(aurocs_df$average_auroc, decreasing = TRUE),],10)
+```{r gene_set_aurocs, eval=TRUE}
+head(aurocs_df[order(aurocs_df$average, decreasing = TRUE),],10)
 ```
 
 Without surprise, replicability is mainly driven by gene sets related to neuronal functions that are immediately relevant to the physiology of inhibitory neurons, such as "glutamate receptor signaling pathway", "regulation of synaptic transmission, glutamatergic", or "chemical synaptic transmission, postsynaptic". Note that most of the top scoring gene sets have a large number of genes. To obtain even more specific biological function, we can further filter gene sets that have fewer than 20 genes.
 
-```{r eval = TRUE}
-small_sets = aurocs_df[aurocs_df$gs_size < 20,]
-head(small_sets[order(small_sets$average_auroc, decreasing = TRUE),],10)
+```{r small_set_aurocs, eval=TRUE}
+small_sets = aurocs_df[aurocs_df$n_genes < 20,]
+head(small_sets[order(small_sets$average, decreasing = TRUE),],10)
 ```
 
 Again, the top scoring gene sets are dominated by biological functions immediately relevant to inhibitory neuron physiology, such as "ionotropic glutamate receptor signaling pathway", "positive regulation of synaptic transmission, GABAergic", or "GABA-A receptor complex".
@@ -102,7 +113,7 @@ Again, the top scoring gene sets are dominated by biological functions immediate
 
 7. To understand how individual genes contribute to gene set performance, we use the "plotDotPlot" function, which while show the expression of all genes in a gene set of interest, averaged over all datasets.
 
-```{r eval = TRUE, fig.width=7, fig.height=6.5}
+```{r dot_plots, eval=TRUE, fig.width=7, fig.height=6.5}
 plotDotPlot(dat = biccn_gaba,
             experiment_labels = biccn_gaba$study_id,
             celltype_labels = biccn_gaba$joint_subclass_label,
