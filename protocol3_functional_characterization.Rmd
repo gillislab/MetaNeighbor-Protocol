@@ -20,11 +20,11 @@ registerS3method(
 
 # Protocol 3: Functional characterization of replicating clusters
 
-Protocol 3 demonstrates how to characterize functional gene sets contributing to cell type identity. In this section, we will focus on the characterization of inhibitory neuron subclasses as provided by the BICCN. The BICCN has shown that subclasses are strongly replicable across datasets and provided marker genes that are specific to each subclass. MetaNeighbor can be used to further quantify which pathways contribute to the subclasses' unique biological properties.
+Protocol 3 demonstrates how to characterize functional gene sets contributing to cell type identity. Once replicating cell types have been identified with unsupervised MetaNeighbor (as in Protocols 1 and 2), supervised MetaNeighbor enables the functional interpretation of the biology contributing to each cell type's identity. In this protocol, we will focus on the characterization of inhibitory neuron subclasses from the mouse primary cortex as provided by the BICCN. The BICCN has shown that subclasses are strongly replicable across datasets and provided marker genes that are specific to each subclass. MetaNeighbor can be used to further quantify which pathways contribute to the subclasses' unique biological properties.
 
-## Step 1 - Creation of biologically relevant gene sets
+## Step 1 - Creation of biologically relevant gene sets (1 minute)
 
-1. To compute the functional characterization of clusters, we first need an ensemble of gene sets sampling relevant biological pathways. In this protocol we will consider the Gene Ontology (GO) annotation for mouse. The scripts used to build up-to-date gene sets are here XXX, gene sets can be downloaded directly here XXX.  
+1. To compute the functional characterization of clusters, we first need an ensemble of gene sets sampling relevant biological pathways. In this protocol we will consider the Gene Ontology (GO) annotations for mouse. The scripts used to build up-to-date gene sets can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), gene sets can be downloaded directly on [FigShare](https://figshare.com/articles/dataset/Protocol_data_R_version_/13020569).
 
 ```{r load_go, eval=TRUE}
 go_sets = readRDS("go_mouse.rds")
@@ -32,7 +32,7 @@ go_sets = readRDS("go_mouse.rds")
 
 Gene sets are stored as a named list, each element of the list corresponds to a gene set and contains a vector of gene symbols.
 
-2. Then we load our dataset containing inhibitory neurons from the BICCN. The scripts used to build the dataset can be found here XXX, the dataset can be downloaded here XXX.
+2. We load the dataset containing inhibitory neurons from the BICCN. The scripts used to build the dataset can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), the dataset can be downloaded on [FigShare](https://figshare.com/articles/dataset/Protocol_data_R_version_/13020569).
 
 ```{r load_biccn, eval=TRUE}
 library(SingleCellExperiment)
@@ -40,7 +40,7 @@ biccn_gaba = readRDS("biccn_gaba.rds")
 dim(biccn_gaba)
 ```
 
-3. Next we restrict our gene sets to genes that are present in the dataset. We then filter gene sets to obtain gene sets of meaningful size: large enough to learn expression profiles (> 10), small enough to represent specific biological function or processes (< 100).
+3. Next we restrict our gene sets to genes that are present in the dataset. We then filter gene sets to keep gene sets of meaningful size: large enough to learn expression profiles (> 10), small enough to represent specific biological functions or processes (< 100).
 
 ```{r filter_genes, eval=TRUE}
 known_genes = rownames(biccn_gaba)
@@ -52,41 +52,36 @@ go_sets = go_sets[go_set_size >= min_size & go_set_size <= max_size]
 length(go_sets)
 ```
 
-## Step 2: Functional characterization with supervised MetaNeighbor
+## Step 2: Functional characterization with supervised MetaNeighbor (30-60 minutes)
 
-4. Once the gene set list is ready, we run the supervised "MetaNeighbor" function. Its inputs are similar to "MetaNeighborUS", but it assumes that cell types have already been matched across datasets (i.e., they have identical names). Here we will use joint BICCN subclasses, for which names have been normalized across datasets ("Pvalb", "Sst", "Sst Chodl", "Vip", "Lamp5", "Sncg"). Note that, because we are testing close to 6,500 gene sets, this step is expected to take a long time for large datasets. We recommend using this function inside a script and always save results to a file as soon as it's done.
+4. Once the gene set list is ready, we run the supervised _MetaNeighbor_ function. Its inputs are similar to _MetaNeighborUS_, but it assumes that cell types have already been matched across datasets (i.e., they have identical names). Here we use joint BICCN subclasses, for which names have been normalized across datasets ("Pvalb", "Sst", "Sst Chodl", "Vip", "Lamp5", "Sncg"). Note that, because we are testing close to 6,500 gene sets, this step is expected to take a long time for large datasets. We recommend using this function inside a script and always save results to a file as soon as computations are done.
 
 ```{r run_metaneighbor, eval=TRUE}
 library(MetaNeighbor)
-#devtools::load_all("~/projects/metaneighbor/MetaNeighbor")
 
-system.time({
 aurocs = MetaNeighbor(dat = biccn_gaba,
                       experiment_labels = biccn_gaba$study_id,
                       celltype_labels = biccn_gaba$joint_subclass_label,
                       genesets = go_sets[1:10],
                       fast_version = TRUE, bplot = FALSE, batch_size = 50)
-})
-if (FALSE) {
-write.table(aurocs, "functional_aurocs.txt")
-}
+#write.table(aurocs, "functional_aurocs.txt")
 ```
 
-Later, results can be retrieved with the "read.table" function:
+Later, results can be retrieved with the _read.table_ function:
 
 ```{r load_results, eval=TRUE}
 aurocs = read.table("functional_aurocs.txt")
 ```
 
-5. We use the "plotBPlot" function on the first 100 gene sets to rapidly visualize how replicability depends on gene sets.
+5. We use the _plotBPlot_ function on the first 100 gene sets to visualize how replicability depends on gene sets.
 
 ```{r bean_plot, eval=TRUE, fig.width=7, fig.height=6.5}
 plotBPlot(head(aurocs, 100))
 ```
 
-We note that, on average, gene sets contribute moderately to replicability (AUROC ~ 0.7), numerous gene sets have a performance close to random (AUROC ~ 0.5 - 0.6) and some gene sets have exceedingly high performance (AUROC > 0.8).
+In this representation, large segments represent average gene set performance and short segments represent the performance of individual gene sets. We note that most gene sets contribute moderately to replicability (AUROC ~ 0.7), numerous gene sets have a performance close to random (AUROC ~ 0.5 - 0.6) and some gene sets have exceedingly high performance (AUROC > 0.8).
 
-6. To focus on gene sets that contribute highly to specificity, we create a summary table containing, for each gene set, cell type specific AUROCs, average AUROC across all cell types and gene set size.
+6. To focus on gene sets that contribute highly to cell type specificity, we create a summary table containing, for each gene set, cell type specific AUROCs, average AUROCs across cell types and gene set size.
 
 ```{r result_table, eval=TRUE}
 gs_size = sapply(go_sets, length)
@@ -95,13 +90,13 @@ aurocs_df$average = rowMeans(aurocs)
 aurocs_df$n_genes = gs_size[rownames(aurocs)]
 ```
 
-We then order gene set by AUROC and look at top scoring gene sets:
+We then order gene sets by average AUROC and look at the top scoring gene sets.
 
 ```{r gene_set_aurocs, eval=TRUE}
 head(aurocs_df[order(aurocs_df$average, decreasing = TRUE),],10)
 ```
 
-Without surprise, replicability is mainly driven by gene sets related to neuronal functions that are immediately relevant to the physiology of inhibitory neurons, such as "glutamate receptor signaling pathway", "regulation of synaptic transmission, glutamatergic", or "chemical synaptic transmission, postsynaptic". Note that most of the top scoring gene sets have a large number of genes. To obtain even more specific biological function, we can further filter gene sets that have fewer than 20 genes.
+Without surprise, replicability is mainly driven by gene sets related to neuronal functions that are immediately relevant to the physiology of inhibitory neurons, such as "glutamate receptor signaling pathway", "regulation of synaptic transmission, glutamatergic", or "chemical synaptic transmission, postsynaptic". Note that most of the top scoring gene sets have a large number of genes, as larger sets of genes make it easier to learn generalizable expression profiles. To obtain even more specific biological function, we can further filter for gene sets that have fewer than 20 genes.
 
 ```{r small_set_aurocs, eval=TRUE}
 small_sets = aurocs_df[aurocs_df$n_genes < 20,]
@@ -110,8 +105,7 @@ head(small_sets[order(small_sets$average, decreasing = TRUE),],10)
 
 Again, the top scoring gene sets are dominated by biological functions immediately relevant to inhibitory neuron physiology, such as "ionotropic glutamate receptor signaling pathway", "positive regulation of synaptic transmission, GABAergic", or "GABA-A receptor complex".
 
-
-7. To understand how individual genes contribute to gene set performance, we use the "plotDotPlot" function, which while show the expression of all genes in a gene set of interest, averaged over all datasets.
+7. To understand how individual genes contribute to gene set performance, we use the _plotDotPlot_ function, which shows the expression of all genes in a gene set of interest, averaged over all datasets.
 
 ```{r dot_plots, eval=TRUE, fig.width=7, fig.height=6.5}
 plotDotPlot(dat = biccn_gaba,
@@ -124,6 +118,4 @@ plotDotPlot(dat = biccn_gaba,
             gene_set = go_sets[["GO:1902711|GABA-A receptor complex|CC"]])
 ```
 
-High scoring gene sets are characterized by the differential usage of genes from a given gene set. For example, when looking at the GABA-A receptor complex composition, Lamp5 will preferentially use the Gabrb2 and Gabrg3 receptors, Pvalb the Gabra1 receptor, and Sst Chodl the Gabra2, Gabrb1 and Gabrg1 receptors.
-
-Once the overall replicability of clusters has been established with unsupervised MetaNeighbor (as in Protocols 1 and 2), supervised MetaNeighbor enables the functional interpretation of the biology contributing to each cell type's unique identity.
+High scoring gene sets are characterized by the differential usage of genes from a given gene set. For example, when looking at the GABA-A receptor complex composition, Lamp5 preferentially uses the Gabrb2 and Gabrg3 receptors, Pvalb the Gabra1 receptor, and Sst Chodl the Gabra2, Gabrb1 and Gabrg1 receptors.

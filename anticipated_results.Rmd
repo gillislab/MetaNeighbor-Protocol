@@ -13,7 +13,7 @@ Because MetaNeighbor is non-parametric, there is no fine-tuning to be done for a
 
 ## Bad gene set selection
 
-The most common problem is to forget to select a set of highly variable genes, which is expected to dampen the impact of technical variability on neighbor voting. First, we present an example of a correct analysis, where we load the BICCN GABAergic neurons, select highly variable genes, and compute cluster similarities (see Protocol 1 for more details). 
+The most common problem is to forget to select a set of highly variable genes, which is expected to dampen the impact of technical variability on neighbor voting. First, we present an example of a correct analysis, where we load the BICCN GABAergic neurons, select highly variable genes, and compute cluster similarities (see Protocol 1 for more details).
 
 
 ```{r bad_gene_set, eval = TRUE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
@@ -22,23 +22,19 @@ biccn_data = readRDS("biccn_gaba.rds")
 biccn_hvgs = variableGenes(biccn_data, exp_labels = biccn_data$study_id)
 
 # GOOD
-system.time({
 aurocs = MetaNeighborUS(var_genes = biccn_hvgs,
                         dat = biccn_data,
                         study_id = biccn_data$study_id,
                         cell_type = biccn_data$joint_subclass_label,
                         fast_version = TRUE)
-})
 plotHeatmap(aurocs, cex = 0.5)
 
-#BAD
-system.time({
+# BAD
 aurocs = MetaNeighborUS(var_genes = sample(rownames(biccn_data), length(biccn_hvgs)),
                         dat = biccn_data,
                         study_id = biccn_data$study_id,
                         cell_type = biccn_data$joint_subclass_label,
                         fast_version = TRUE)
-})
 plotHeatmap(aurocs, cex = 0.5)
 ```
 
@@ -53,7 +49,7 @@ library(scRNAseq)
 tasic = TasicBrainData(ensembl = FALSE, location = FALSE)
 tasic$study_id = "tasic"
 
-#GOOD
+# GOOD
 biccn_subclasses = read.table("pretrained_biccn_subclasses.txt", check.names = FALSE)
 aurocs = MetaNeighborUS(
   trained_model = biccn_subclasses, dat = tasic,
