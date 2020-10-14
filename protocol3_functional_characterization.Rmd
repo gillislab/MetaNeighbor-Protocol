@@ -52,11 +52,11 @@ go_sets = go_sets[go_set_size >= min_size & go_set_size <= max_size]
 length(go_sets)
 ```
 
-## Step 2: Functional characterization with supervised MetaNeighbor (30-60 minutes)
+## Step 2: Functional characterization with supervised MetaNeighbor (30-90 minutes)
 
 4. Once the gene set list is ready, we run the supervised _MetaNeighbor_ function. Its inputs are similar to _MetaNeighborUS_, but it assumes that cell types have already been matched across datasets (i.e., they have identical names). Here we use joint BICCN subclasses, for which names have been normalized across datasets ("Pvalb", "Sst", "Sst Chodl", "Vip", "Lamp5", "Sncg"). Note that, because we are testing close to 6,500 gene sets, this step is expected to take a long time for large datasets. We recommend using this function inside a script and always save results to a file as soon as computations are done.
 
-```{r run_metaneighbor, eval=TRUE}
+```{r run_metaneighbor, eval=TRUE, results=FALSE}
 library(MetaNeighbor)
 
 aurocs = MetaNeighbor(dat = biccn_gaba,
@@ -96,7 +96,7 @@ We then order gene sets by average AUROC and look at the top scoring gene sets.
 head(aurocs_df[order(aurocs_df$average, decreasing = TRUE),],10)
 ```
 
-Without surprise, replicability is mainly driven by gene sets related to neuronal functions that are immediately relevant to the physiology of inhibitory neurons, such as "glutamate receptor signaling pathway", "regulation of synaptic transmission, glutamatergic", or "chemical synaptic transmission, postsynaptic". Note that most of the top scoring gene sets have a large number of genes, as larger sets of genes make it easier to learn generalizable expression profiles. To obtain even more specific biological function, we can further filter for gene sets that have fewer than 20 genes.
+Without surprise, replicability is mainly driven by gene sets related to neuronal functions that are immediately relevant to the physiology of inhibitory neurons, such as "glutamate receptor signaling pathway", "regulation of synaptic transmission, glutamatergic", or "chemical synaptic transmission, postsynaptic". Note that most of the top scoring gene sets have a large number of genes, as larger sets of genes make it easier to learn generalizable expression profiles. To obtain even more specific biological functions, we can further filter for gene sets that have fewer than 20 genes.
 
 ```{r small_set_aurocs, eval=TRUE}
 small_sets = aurocs_df[aurocs_df$n_genes < 20,]

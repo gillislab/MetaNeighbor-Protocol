@@ -18,13 +18,15 @@ Important: the installation process may create conflicts in the notebook environ
 1. We start by installing the latest MetaNeighbor package from the Gillis lab GitHub page.
 
 ```{r install_mn, eval = TRUE}
-if (!require('devtools')) {
-  install.packages('devtools', quiet=TRUE)
+if (!require("devtools")) {
+  install.packages("devtools", quiet=TRUE)
 }
 devtools::install_github("gillislab/MetaNeighbor")
 ```
 
-2. We also install the following packages, which are not necessary to run MetaNeighbor itself, but are needed to run the protocol.
+Note that the latest stable version of MetaNeighbor is also available through Bioconductor by running _BiocManager::install("MetaNeighbor")_. As some of the functionalities illustrated here have not yet been pushed to Bioconductor (they will be available in the next release, November 2020), we installed the latest development version from GitHub. 
+
+2. Next, we install the following packages, which are not necessary to run MetaNeighbor itself, but are needed to run the protocol.
 
 ```{r install_utility, eval = TRUE}
 to_install = c("scRNAseq", "tidyverse", "org.Hs.eg.db", "UpSetR")
@@ -38,7 +40,7 @@ if (sum(!installed) > 0) {
 }
 ```
 
-If you have already opened the notebook, don't forget to restart the R session at this stage.
+Reminder: don't forget to restart the R session at this stage.
 
 ## Step 1: creation of a merged SingleCellExperiment dataset (1-2 minutes)
 
@@ -149,15 +151,15 @@ aurocs = MetaNeighborUS(var_genes = global_hvgs,
                         fast_version = TRUE)
 ```
 
-_MetaNeighborUS_ returns a cell-type-by-cell-type matrix containing cell type similarities. Cell type similarities are defined as an Area Under the ROC curve (AUROC), which range between 0 and 1, where 0 indicates low similarity and 1 strong similarity.
+_MetaNeighborUS_ returns a cell-type-by-cell-type matrix containing cell type similarities. Cell type similarities are defined as an Area Under the ROC curve (AUROC), which range between 0 and 1, where 0 indicates low similarity and 1 high similarity.
 
-12. For ease of interpretation we visualize AUROCs as a heatmap, where rows and columns are cell types from all the datasets.
+12. For ease of interpretation, we visualize AUROCs as a heatmap, where rows and columns are cell types from all the datasets.
 
 ```{r plot_global_aurocs, eval = TRUE, fig.width=7, fig.height=6.5}
 plotHeatmap(aurocs, cex = 0.5)
 ```
 
-In the heatmap, the color of each square indicates the proximity of a pair of cell types, ranging from blue (low similarity) to red (high similarity). For example, "baron|gamma" (2nd row) is highly similar to "seger|gamma" (3rd column from the right) but very dissimilar from "muraro|duct" (middle column). To group similar cell types together, _plotHeatmap_ applies hierarchical clustering on the AUROC matrix. On the heatmap, we see two large red blocks that indicate hierarchical structure in the data, with endocrine cell types clustering together (e.g., alpha, beta, gamma) and non-endocrine cells on the other side (e.g., amacrine, ductal, endothelial). Note that each red block is composed of smaller red blocks, indicating that cell types can be matched at an even higher resolution. The presence of off-diagonal patterns (e.g., lawlor|Gamma/PP, lawlor|Delta) suggests the presence of doublets or contamination, but the heatmap is dominated by the clear presence of red blocks, which is a strong indicator of replicability.
+In the heatmap, the color of each square indicates the proximity of a pair of cell types, ranging from blue (low similarity) to red (high similarity). For example, "baron|gamma" (2nd row) is highly similar to "seger|gamma" (3rd column from the right) but very dissimilar from "muraro|duct" (middle column). To group similar cell types together, _plotHeatmap_ applies hierarchical clustering on the AUROC matrix. On the heatmap, we see two large red blocks that indicate hierarchical structure in the data, with endocrine cell types clustering together (e.g., alpha, beta, gamma) and non-endocrine cells on the other side (e.g., amacrine, ductal, endothelial). Note that each red block is composed of smaller red blocks, indicating that cell types can be matched at an even higher resolution. The presence of off-diagonal patterns (e.g., "lawlor|Gamma/PP", "lawlor|Delta") suggests the presence of doublets or contamination, but the heatmap is dominated by the clear presence of red blocks, which is a strong indicator of replicability.
 
 13. To identify pairs of replicable cell types, we rely on a simple heuristic: a pair of cell type is replicable if they are reciprocal top hits (they preferentially vote for each other) and the AUROC exceeds a given threshold value (in our experience, 0.9 is a good heuristic value).
 
@@ -169,7 +171,7 @@ We find a long list of replicable endocrine cell types (e.g., epsilon, alpha and
 
 14. In the case where there is a clear structure in the data (endocrine vs non-endocrine here), we can refine AUROCs by splitting the data. AUROCs have a simple interpretation: an AUROC of 0.6 indicates that cells from a given cell type are ranked in front of 60% of other test cells. However, this interpretation is outgroup dependent: because endocrine cells represent ~65% of cells, even an unrelated pair of non-endocrine cell types will have an AUROC > 0.65, because non-endocrine cells will always be ranked in front of endocrine cells.
 
-By starting with the full datasets, we uncovered the global structure in the data (endocrine vs non-endocrine). However, to evaluate replicability of endocrine cell types and reduce dataset composition effects, we can make the assessment more stringent by restricting the outgroup to close cell types, i.e. by keeping only endocrine subtypes. We split cell types in two by using the _splitClusters_ function and retain only endocrine cell types:
+By starting with the full datasets, we uncovered the global structure in the data (endocrine vs non-endocrine). However, to evaluate replicability of endocrine cell types and reduce dataset composition effects, we can make the assessment more stringent by restricting the outgroup to close cell types, i.e. by keeping only endocrine subtypes. We split cell types in two by using the _splitClusters_ function and retain only endocrine cell types.
 
 ```{r split_global_clusters, eval = TRUE}
 level1_split = splitClusters(aurocs, k = 2)

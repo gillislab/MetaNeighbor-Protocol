@@ -46,7 +46,7 @@ The second problem we have encountered is a mistake that occurs when loading pre
 
 ```{r bad_cluster_name, eval = TRUE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
 library(scRNAseq)
-tasic = TasicBrainData(ensembl = FALSE, location = FALSE)
+tasic = TasicBrainData(ensembl = FALSE)
 tasic$study_id = "tasic"
 
 # GOOD
