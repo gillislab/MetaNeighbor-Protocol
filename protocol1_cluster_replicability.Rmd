@@ -6,6 +6,17 @@ output:
 graphics: yes
 ---
 
+```{r setup, include = FALSE}
+knit_print.data.frame = function(x, ...) {
+  res = paste(c("", "", knitr::kable(x, digits=2, row.names=FALSE)), collapse = "\n")
+  knitr::asis_output(res)
+}
+
+registerS3method(
+  "knit_print", "data.frame", knit_print.data.frame,
+  envir = asNamespace("knitr")
+)
+```
 
 # Protocol 1: assessment of cell type replicability with unsupervised MetaNeighbor
 
@@ -17,7 +28,7 @@ Important: the installation process may create conflicts in the notebook environ
 
 1. We start by installing the latest MetaNeighbor package from the Gillis lab GitHub page.
 
-```{r install_mn, eval = TRUE}
+```{r install_mn, message=FALSE, warning=FALSE}
 if (!require("devtools")) {
   install.packages("devtools", quiet=TRUE)
 }
@@ -28,7 +39,7 @@ Note that the latest stable version of MetaNeighbor is also available through Bi
 
 2. Next, we install the following packages, which are not necessary to run MetaNeighbor itself, but are needed to run the protocol.
 
-```{r install_utility, eval = TRUE}
+```{r install_utility, message=FALSE, warning=FALSE}
 to_install = c("scRNAseq", "tidyverse", "org.Hs.eg.db", "UpSetR")
 installed = sapply(to_install, requireNamespace)
 if (sum(!installed) > 0) {
@@ -46,7 +57,7 @@ Reminder: don't forget to restart the R session at this stage.
 
 3. We consider 4 pancreatic datasets along with their independent annotation (from the original publications). MetaNeighbor expects a gene-by-cell matrix encapsulated in a SummarizedExperiment format. We recommend the SingleCellExperiment (SCE) package, because it is able to handle sparse matrix formats. We load the pancreas datasets using the scRNAseq package, which provide annotated datasets that are already in the SingleCellExperiment format.
 
-```{r load_pancreas, eval = TRUE}
+```{r load_pancreas, message=FALSE}
 library(scRNAseq)
 my_data <- list(
     baron = BaronPancreasData(),
@@ -62,21 +73,22 @@ Note that Seurat objects can easily be converted into SingleCellExperiment objec
 
 We start by checking if gene information aligns (stored in the _rownames_ slot of the SCE object).
 
-```{r check_genes, eval = TRUE}
+```{r check_genes}
 lapply(my_data, function(x) head(rownames(x), 3))
 ```
 Two datasets (Baron, Segerstolpe) use gene symbols, one dataset (Muraro) combines symbols with chromosome information (to avoid duplicate gene names) and the last dataset (Lawlor) uses Ensembl identifiers. Here we will convert all gene names to unique gene symbols. We start by converting gene names in the Muraro dataset by using the symbols stored in the _rowData_ slot of the SCE object, and remove all duplicated gene symbols.
 
-```{r convert_genes_muraro, eval = TRUE}
+```{r convert_genes_muraro}
 rownames(my_data$muraro) <- rowData(my_data$muraro)$symbol
 my_data$muraro <- my_data$muraro[!duplicated(rownames(my_data$muraro)),]
 ```
 Next, we convert Ensembl IDs to gene symbols in the Lawlor dataset, removing all IDs with no match and all duplicated symbols.
 
-```{r convert_genes_lawlor, eval = TRUE}
+```{r convert_genes_lawlor, message=FALSE}
 library(org.Hs.eg.db)
 
-symbols <- mapIds(org.Hs.eg.db, keys=rownames(my_data$lawlor), keytype="ENSEMBL", column="SYMBOL")
+symbols <- mapIds(org.Hs.eg.db, keys=rownames(my_data$lawlor),
+                  keytype="ENSEMBL", column="SYMBOL")
 keep <- !is.na(symbols) & !duplicated(symbols)
 my_data$lawlor <- my_data$lawlor[keep,]
 rownames(my_data$lawlor) <- symbols[keep]
@@ -84,20 +96,20 @@ rownames(my_data$lawlor) <- symbols[keep]
 
 5. We now turn our attention to metadata, which are stored in the _colData_ slot of the SCE objects. Here we need to make sure that the column that contains cell type information is labeled identically in all datasets.
 
-```{r check_metadata, eval = TRUE}
+```{r check_metadata}
 lapply(my_data, function(x) colnames(colData(x)))
 ```
 
 Two datasets have the cell type information in the "cell type" column, the other two in the "label" column. We add a "cell type" column in the latter two datasets.
 
-```{r convert_metadata, eval = TRUE}
+```{r convert_metadata}
 my_data$baron$"cell type" <- my_data$baron$label
 my_data$muraro$"cell type" <- my_data$muraro$label
 ```
 
 6. Last, we check that count matrices, stored in the _assays_ slot, have identical names.
 
-```{r check_assays, eval = TRUE}
+```{r check_assays}
 lapply(my_data, function(x) names(assays(x)))
 ```
 
@@ -105,7 +117,7 @@ The count matrices are all stored in an assay named "counts", no change is neede
 
 7. Now that gene, cell type and count matrix information is aligned across datasets, we can create a merged dataset. _mergeSCE_ takes a list of SCE objects as an input and outputs a single SCE object.
 
-```{r merge_pancreas, eval = TRUE}
+```{r merge_pancreas}
 library(MetaNeighbor)
 
 fused_data = mergeSCE(my_data)
@@ -117,7 +129,7 @@ The new dataset contains 15,295 common genes, 15,793 cells and two metadata colu
 
 8. To avoid having to recreate the merged object, we recommend saving it as an RDS file.
 
-```{r save_pancreas, eval = TRUE}
+```{r save_pancreas, eval=FALSE}
 saveRDS(fused_data, "merged_pancreas.rds")
 ```
 
@@ -125,7 +137,7 @@ saveRDS(fused_data, "merged_pancreas.rds")
 
 9. We start by loading the MetaNeighbor (analysis) and the SingleCellExperiment (data handling) libraries, as well as the previously created pancreas dataset.
 
-```{r load_merged_pancreas, eval = TRUE}
+```{r load_merged_pancreas}
 library(MetaNeighbor)
 library(SingleCellExperiment)
 
@@ -134,7 +146,7 @@ pancreas_data = readRDS("merged_pancreas.rds")
 
 10. To perform neighbor voting and identify replicating cell types, MetaNeighbor builds a cell-cell similarity network, which we defined as the Spearman correlation over a user-defined set of genes. We found that we obtained best results by picking genes that are highly variable across datasets, which can be picked using the _variableGenes_ function.
 
-```{r compute_global_hvgs, eval = TRUE}
+```{r compute_global_hvgs}
 global_hvgs = variableGenes(dat = pancreas_data, exp_labels = pancreas_data$study_id)
 length(global_hvgs)
 ```
@@ -143,7 +155,7 @@ The function returns a list of 600 genes that were detected as highly variable i
 
 11. The merged dataset and a set of biological meaningful genes is all we need to run MetaNeighbor and obtain cell type similarities. Because the dataset is large (> 10k cells), we use the fast implementation of MetaNeighbor ("fast_version=TRUE").
 
-```{r compute_global_aurocs, eval = TRUE}
+```{r compute_global_aurocs}
 aurocs = MetaNeighborUS(var_genes = global_hvgs,
                         dat = pancreas_data,
                         study_id = pancreas_data$study_id,
@@ -155,7 +167,7 @@ _MetaNeighborUS_ returns a cell-type-by-cell-type matrix containing cell type si
 
 12. For ease of interpretation, we visualize AUROCs as a heatmap, where rows and columns are cell types from all the datasets.
 
-```{r plot_global_aurocs, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r plot_global_aurocs, fig.width=7, fig.height=6.5}
 plotHeatmap(aurocs, cex = 0.5)
 ```
 
@@ -163,8 +175,9 @@ In the heatmap, the color of each square indicates the proximity of a pair of ce
 
 13. To identify pairs of replicable cell types, we rely on a simple heuristic: a pair of cell type is replicable if they are reciprocal top hits (they preferentially vote for each other) and the AUROC exceeds a given threshold value (in our experience, 0.9 is a good heuristic value).
 
-```{r show_global_top_hits, eval = TRUE}
-topHits(aurocs, dat = pancreas_data, study_id = pancreas_data$study_id, cell_type = pancreas_data$"cell type", threshold = 0.9)
+```{r show_global_top_hits}
+topHits(aurocs, dat = pancreas_data, study_id = pancreas_data$study_id,
+        cell_type = pancreas_data$"cell type", threshold = 0.9)
 ```
 
 We find a long list of replicable endocrine cell types (e.g., epsilon, alpha and beta cells) and non-endocrine cell types (e.g. mast, endothelial or acinar cells). This list provides strong evidence that these cell types are robust, as they are identified across all datasets with high AUROC.
@@ -173,7 +186,7 @@ We find a long list of replicable endocrine cell types (e.g., epsilon, alpha and
 
 By starting with the full datasets, we uncovered the global structure in the data (endocrine vs non-endocrine). However, to evaluate replicability of endocrine cell types and reduce dataset composition effects, we can make the assessment more stringent by restricting the outgroup to close cell types, i.e. by keeping only endocrine subtypes. We split cell types in two by using the _splitClusters_ function and retain only endocrine cell types.
 
-```{r split_global_clusters, eval = TRUE}
+```{r split_global_clusters}
 level1_split = splitClusters(aurocs, k = 2)
 level1_split
 first_split = level1_split[[2]]
@@ -182,9 +195,9 @@ By outputting "level1_split", we found that the cell types were nicely split bet
 
 15. We repeat the MetaNeighbor analysis on endocrine cells only. First, we subset the data to the endocrine cell types that we previously stored in "first_split".
 
-```{r subset_global_data, eval = TRUE}
-to_keep = makeClusterName(pancreas_data$study_id, pancreas_data$"cell type") %in% first_split
-subdata = pancreas_data[, to_keep]
+```{r subset_global_data}
+full_labels = makeClusterName(pancreas_data$study_id, pancreas_data$"cell type")
+subdata = pancreas_data[, full_labels %in% first_split]
 dim(subdata)
 ```
 
@@ -192,13 +205,13 @@ The new dataset contains the 9341 putative endocrine cells.
 
 16. To focus on variability that is specific to endocrine cells, we re-pick highly variable genes.
 
-```{r compute_endocrine_hvgs, eval = TRUE}
+```{r compute_endocrine_hvgs}
 var_genes = variableGenes(dat = subdata, exp_labels = subdata$study_id)
 ```
 
 17. Finally, we recompute cell type similarities and visualize AUROCs.
 
-```{r compute_endocrine_aurocs, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r compute_endocrine_aurocs, fig.width=7, fig.height=6.5}
 aurocs = MetaNeighborUS(var_genes = var_genes,
                         dat = subdata, fast_version = TRUE,
                         study_id = subdata$study_id,
@@ -210,11 +223,10 @@ The resulting heatmap illustrates an example of a strong set of replicating cell
 
 18. We can continue to zoom in as long as there are at least two cell types per dataset.
 
-```{r split_endocrine, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r split_endocrine, fig.width=7, fig.height=6.5}
 level2_split = splitClusters(aurocs, k = 3)
 my_split = level2_split[[3]]
-keep_cell = makeClusterName(pancreas_data$study_id, pancreas_data$"cell type") %in% my_split
-subdata = pancreas_data[, keep_cell]
+subdata = pancreas_data[, full_labels %in% my_split]
 var_genes = variableGenes(dat = subdata, exp_labels = subdata$study_id)
 length(var_genes)
 aurocs = MetaNeighborUS(var_genes = var_genes,
@@ -233,7 +245,7 @@ In the previous section, we created progressively more stringent replicability a
 
 19. To obtain one-vs-best AUROCs, we run the same command as before with two additional parameters: "one_vs_best = TRUE" and "symmetric_output = FALSE".
 
-```{r compute_1v1_aurocs, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r compute_1v1_aurocs, fig.width=7, fig.height=6.5}
 best_hits = MetaNeighborUS(var_genes = global_hvgs,
                            dat = pancreas_data,
                            study_id = pancreas_data$study_id,
@@ -249,19 +261,20 @@ This representation helps to rapidly identify a cell type's closest hits as well
 
 20. When using one-vs-best AUROCs, we recommend extracting replicating cell types as meta-clusters. Cell types are part of the same meta-cluster if they are reciprocal best hits. Note that if cell type A is the reciprocal best hit of B and C, all three cell types are part of the same meta-cluster, even if B and C are not reciprocal best hits. To further filter for strongly replicating cell types, we specify an AUROC threshold (in our experience, 0.7 is a strong one-vs-best AUROC threshold).
 
-```{r extract_metaclusters, eval = TRUE}
+```{r extract_metaclusters}
 mclusters = extractMetaClusters(best_hits, threshold = 0.7)
-scoreMetaClusters(mclusters, best_hits)
+mcsummary = scoreMetaClusters(mclusters, best_hits)
+mcsummary[mcsummary$meta_cluster != "outliers",]
 ```
 
 The _scoreMetaClusters_ provides a good summary of meta-clusters, ordering cell types by the number of datasets in which they replicate, then by average AUROC. We find 12 cell types that have strong support across at least 2 datasets, with 7 cell types replicating across all 4 datasets. 8 cell types are tagged as "outlier", indicating they had no strong match in any other dataset. These cell types usually contain doublets, low quality cells or contaminated cell types. To rapidly visualize the number of robust cell types, the replicability structure can be summarized as an Upset plot with the _plotUpset_ function.
 
-```{r plot_upset, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r plot_upset, fig.width=7, fig.height=6.5}
 plotUpset(mclusters)
 ```
 To further investigate the robustness of meta-clusters, they can be visualized as heatmaps (called "cell-type badges") with the _plotMetaClusters_ function. Because the function generates one heatmap per meta-cluster, we save the output to a PDF file to facilitate investigation. Each badge shows an AUROC heatmap restricted to one specific meta-cluster. These badges help diagnose cases where AUROCs are lower in a specific train or test dataset. For example, the "muraro|duct" cell type has systematically lower AUROCs, suggesting the presence of contaminating cells in another cell type (probably in the "muraro|unclear" cell type).
 
-```{r plot_meta_clusters, eval = TRUE}
+```{r plot_meta_clusters}
 pdf("meta_clusters.pdf")
 plotMetaClusters(mclusters, best_hits)
 dev.off()
@@ -269,18 +282,20 @@ dev.off()
 
 21. The last visualization is an alternative representation of the AUROC heatmap as a graph, which is particularly useful for large datasets. In this graph, top votes (AUROC > 0.5) are shown in gray, while outgroup votes (AUROC < 0.5) are shown in orange. To highlight close calls, we recommend keeping only strong outgroup votes, here with AUROC >= 0.3.
 
-```{r plot_cluster_graph, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r plot_cluster_graph, fig.width=7, fig.height=6.5}
 cluster_graph = makeClusterGraph(best_hits, low_threshold = 0.3)
-plotClusterGraph(cluster_graph, pancreas_data$study_id, pancreas_data$"cell type", size_factor=3)
+plotClusterGraph(cluster_graph, pancreas_data$study_id,
+                 pancreas_data$"cell type", size_factor=3)
 ```
 
 We note that there are several orange edges, indicating that some cell types had two close matches. To investigate the origin of these close calls, we can focus on a cluster of interest (coi). Here we take a closer look at "baron|epsilon", query its closest neighbors in the graph with _extendClusterSet_, then zoom in on its subgraph with _subsetClusterGraph_.
 
-```{r plot_subgraph, eval = TRUE, fig.width=7, fig.height=6.5}
+```{r plot_subgraph, fig.width=7, fig.height=6.5}
 coi = "baron|epsilon"
-coi = extendClusterSet(cluster_graph, initial_set = coi, max_neighbor_distance = 2)
+coi = extendClusterSet(cluster_graph, initial_set=coi, max_neighbor_distance=2)
 subgraph = subsetClusterGraph(cluster_graph, coi)
-plotClusterGraph(subgraph, pancreas_data$study_id, pancreas_data$"cell type", size_factor=5)
+plotClusterGraph(subgraph, pancreas_data$study_id,
+                 pancreas_data$"cell type", size_factor=5)
 ```
 
 In the "baron|epsilon" case, we find that the epsilon cell type is missing in the Lawlor dataset, so there is no natural match for the Baron epsilon cell type. In such cases, votes are frequently non-reciprocal and equally split between two unrelated cell types, here "Lawlor|Gamma/PP" and "Lawlor|Alpha". In general, the cluster graph can be used to understand how meta-clusters are extracted, why some clusters are tagged as outliers and diagnose problems where the resolution of cell types differs across datasets.
