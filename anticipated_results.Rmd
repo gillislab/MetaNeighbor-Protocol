@@ -40,41 +40,16 @@ plotHeatmap(aurocs, cex = 0.5)
 
 We recognize strong replicability structure, evidenced by the presence of dark red blocks. When we repeat the analysis with random genes, the replicability structure is still present, but we recognize two signatures of bad gene set selection: (a) AUROCs are low overall (shift to light red and orange), (b) within red blocks, there is a clear gradient structure. In our experience, there are 3 scenarios that lead to bad gene selection: errors in gene symbol conversion, errors when genes are stored as factors in R (that are implicitly converted to numerical values during indexing), forgetting to select highly variable genes altogether.
 
-## Pretrained MetaNeighbor: bad name formatting
-
-The second problem we have encountered is a mistake that occurs when loading pre-trained model and forgetting to specify "check.names = FALSE", which is essential to preserve correct formatting of cell type names. Here is an example of correct code based on data from Protocol 2.
-
-```{r bad_cluster_name, eval = TRUE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
-library(scRNAseq)
-tasic = TasicBrainData(ensembl = FALSE)
-tasic$study_id = "tasic"
-
-# GOOD
-biccn_subclasses = read.table("pretrained_biccn_subclasses.txt", check.names = FALSE)
-aurocs = MetaNeighborUS(
-  trained_model = biccn_subclasses, dat = tasic,
-  study_id = tasic$study_id, cell_type = tasic$primary_type,
-  fast_version = TRUE
-)
-plotHeatmapPretrained(aurocs)
-
-# BAD
-biccn_subclasses = read.table("pretrained_biccn_subclasses.txt")
-aurocs = MetaNeighborUS(
-  trained_model = biccn_subclasses, dat = tasic,
-  study_id = tasic$study_id, cell_type = tasic$primary_type,
-  fast_version = TRUE
-)
-plotHeatmapPretrained(aurocs)
-```
-
-We obtain the expected replicability structure, with evidence of strong hits across all cell types (see Protocol 2 for further details and analyses). When we forget "check.names = FALSE", MetaNeighbor is unable to correctly recognize dataset names and cell type names in the pre-trained model, the similarity computations become meaningless, leading to AUROC values that are essentially 0.5. This problem is easy to diagnose and fix, but can be very confusing when it occurs.
 
 ## No overlap between datasets
 
 The final problem occurs when there is no overlap between datasets. We illustarte this problem with the data from Protocol 2, where we expect all cell types from the Tasic dataset to be present in the pre-trained BICCN model.
 
 ```{r bad_overlap, eval = TRUE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
+library(scRNAseq)
+tasic = TasicBrainData(ensembl = FALSE)
+tasic$study_id = "tasic"
+
 biccn_subclasses = read.table("pretrained_biccn_subclasses.txt", check.names = FALSE)
 global_aurocs = MetaNeighborUS(
   trained_model = biccn_subclasses, dat = tasic,
@@ -108,3 +83,78 @@ plotHeatmapPretrained(aurocs, cex = 0.7)
 
 According to our expectations, all cell types have strong hits with BICCN clusters and we see a hierarchical structure that is consistent with prior biological knowledge: lighter red blocks corresponding to MGE and CGE-derived inhibitory neurons. We compare with the same block of code, where we mistakenly keep non-neurons from the BICCN taxonomy instead of inhibitory neurons.
 The lack of biological overlap can be deduced from 3 factors: (a) low AUROC values overall, (b) almost no strong hits (contrary to expectations), (c) lack of expected hierarchical structure (MGE and CGE derived interneurons).
+
+## Pretrained MetaNeighbor: bad name formatting
+
+The second problem we have encountered is a mistake that occurs when loading pre-trained model and forgetting to specify "check.names = FALSE", which is essential to preserve correct formatting of cell type names. Here is an example of correct code based on data from Protocol 2.
+
+```{r bad_cluster_name, message=FALSE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
+# GOOD
+biccn_subclasses = read.table("pretrained_biccn_subclasses.txt", check.names = FALSE)
+aurocs = MetaNeighborUS(
+  trained_model = biccn_subclasses, dat = tasic,
+  study_id = tasic$study_id, cell_type = tasic$primary_type,
+  fast_version = TRUE
+)
+plotHeatmapPretrained(aurocs)
+
+# BAD
+biccn_subclasses = read.table("pretrained_biccn_subclasses.txt")
+aurocs = MetaNeighborUS(
+  trained_model = biccn_subclasses, dat = tasic,
+  study_id = tasic$study_id, cell_type = tasic$primary_type,
+  fast_version = TRUE
+)
+plotHeatmapPretrained(aurocs)
+```
+
+We obtain the expected replicability structure, with evidence of strong hits across all cell types (see Protocol 2 for further details and analyses). When we forget "check.names = FALSE", MetaNeighbor is unable to correctly recognize dataset names and cell type names in the pre-trained model, the similarity computations become meaningless, leading to AUROC values that are essentially 0.5. This problem is easy to diagnose and fix, but can be very confusing when it occurs.
+
+## Generalizable interpretation of cross-dataset similarities
+
+In their computations, MetaNeighbor’s AUROCs are directly related to Spearman correlations. More precisely, all computations are based on average Spearman correlations between cells from two cell types, but include an additional prediction that get rid off batch effects, while keeping an interpretability power that is comparable to correlations (where AUROC = 0 maps to correlation = -1, AUROC = 0.5 maps to correlation = 0, AUROC = 1 maps to correlation = 1).
+
+To appreciate how the additional prediction step enables us to obtain "batch free correlations", we compare MetaNeighbor’s output with a more naive similarity output, where we compute the Spearman correlation between cell type centroids. We start by computing cell type centroids.
+
+```{r centroid_computation}
+cell_types = as.factor(
+    makeClusterName(biccn_data$study_id, biccn_data$joint_subclass_label)
+)
+normalization_factor = Matrix::colSums(assay(biccn_data)) / 1000000
+cpm = assay(biccn_data)
+cpm@x = cpm@x / rep.int(normalization_factor, diff(cpm@p))
+cpm = as.matrix(cpm[biccn_hvgs,])
+
+centroids = sapply(levels(cell_types), function(ct) {        
+    matrixStats::rowMeans2(log2(cpm+1), cols = cell_types == ct)
+})
+```
+
+Now we compare centroid correlations with MetaNeighbor AUROCs.
+
+```{r metaneighbor_vs_correlation, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
+centroid_cor = cor(centroids, method = "spearman")
+aurocs = MetaNeighborUS(var_genes = biccn_hvgs,
+                        dat = biccn_data,
+                        study_id = biccn_data$study_id,
+                        cell_type = biccn_data$joint_subclass_label,
+                        fast_version = TRUE)
+plotHeatmap((1+centroid_cor)/2, cex = 0.5)
+plotHeatmap(aurocs, cex = 0.5)
+```
+
+Centroid correlations have interesting properties: centroids cluster primarily by cell type (then by dataset), we see global hierarchical structure (MGE-derived interneurons vs CGE-derived interneurons). However, batch effects are clearly visible throughout the heatmap. For example, within each cell type, Chromium-based datasets tend to cluster on one side, SmartSeq datasets on the other side. In contrast, for an equivalent computation time, all the "good" patterns are made exquisitely clear with MetaNeighbor AUROCs.
+
+The conceptual relationship between AUROCs makes cell type similarities interpretable, without having to worry about batch effects. As we have pointed out in Protocol 1, one of the main difference between AUROCs and correlations is the dependency on dataset composition (more precisely, what outgroup is considered in the prediction task). 
+
+```{r average_spearman}
+# the following lines are equivalent (but faster) to running
+# "mean(cor(cpm, method = "s"))" for each pair of cell type
+ranked_cpm = matrixStats::colRanks(cpm, ties.method = "average", preserveShape = TRUE)
+scaled_cpm = scale(ranked_cpm) / sqrt(nrow(ranked_cpm)-1)
+z_centroids = sapply(levels(cell_types), function(ct) {        
+    matrixStats::rowMeans2(scaled_cpm, cols = cell_types == ct)
+})
+centroid_cor = crossprod(z_centroids)
+plotHeatmap((1+centroid_cor)/2, cex = 0.5)
+```
