@@ -1,3 +1,8 @@
-# Scaling up reproducible research for single cell transcriptomics using MetaNeighbor (Protocol)
+# Scaling up reproducible research for single cell transcriptomics using MetaNeighbor (Protocols)
 
-TEMPLATE TEXT In this vignette, we reproduce the MetaNeighbor cluster replicability analyses presented in the [BICCN molecular mini-atlas manuscript](https://www.biorxiv.org/content/10.1101/2020.02.29.970558v2).
+In this repository, we present 3 protocols to illustrate how MetaNeighbor can be used to quantify and characterize cell type replicability across single cell transcriptomic datasets.
+
+To run the protocols, you will need to install the R or Python version of MetaNeighbor. Installation instructions are included in Protocol 1, but you can also install the development version of MetaNeighbor for [R](https://github.com/gillislab/MetaNeighbor) or [Python](https://github.com/gillislab/pyMN) by following the corresponding links (installation instructions are included in the README). All protocols have been tested on Windows 10, MacOS Catalina 10.15 and Linux RHEL7 and are expected to run on an up-to-date R or Python environment.
+
+This repository also includes the script generating the data used in the protocols. Alternatively, you can access ready-to-use data from FigShare for [R](https://doi.org/10.6084/m9.figshare.13020569) or [Python](https://doi.org/10.6084/m9.figshare.13034171).
+

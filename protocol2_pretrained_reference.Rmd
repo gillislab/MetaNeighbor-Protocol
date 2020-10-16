@@ -12,7 +12,7 @@ Protocol 2 demonstrates how to assess cell types of a newly annotated dataset ag
 
 ## Step 1 - Pre-train a reference MetaNeighbor model (1-5 minutes)
 
-1. We start by loading an already merged SCE object containing the BICCN dataset. The full code for generating the dataset is available on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), the dataset can be downloaded directly on [FigShare](https://figshare.com/articles/dataset/Protocol_data_R_version_/13020569).
+1. We start by loading an already merged SCE object containing the BICCN dataset. The full code for generating the dataset is available on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), the dataset can be downloaded directly on [FigShare](https://doi.org/10.6084/m9.figshare.13020569).
 
 ```{r load_biccn, message=FALSE}
 library(SingleCellExperiment)

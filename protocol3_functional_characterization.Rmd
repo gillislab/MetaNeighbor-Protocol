@@ -24,7 +24,7 @@ Protocol 3 demonstrates how to characterize functional gene sets contributing to
 
 ## Step 1 - Creation of biologically relevant gene sets (1 minute)
 
-1. To compute the functional characterization of clusters, we first need an ensemble of gene sets sampling relevant biological pathways. In this protocol we will consider the Gene Ontology (GO) annotations for mouse. The scripts used to build up-to-date gene sets can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), gene sets can be downloaded directly on [FigShare](https://figshare.com/articles/dataset/Protocol_data_R_version_/13020569).
+1. To compute the functional characterization of clusters, we first need an ensemble of gene sets sampling relevant biological pathways. In this protocol we will consider the Gene Ontology (GO) annotations for mouse. The scripts used to build up-to-date gene sets can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), gene sets can be downloaded directly on [FigShare](https://doi.org/10.6084/m9.figshare.13020569).
 
 ```{r load_go}
 go_sets = readRDS("go_mouse.rds")
@@ -32,7 +32,7 @@ go_sets = readRDS("go_mouse.rds")
 
 Gene sets are stored as a named list, each element of the list corresponds to a gene set and contains a vector of gene symbols.
 
-2. We load the dataset containing inhibitory neurons from the BICCN. The scripts used to build the dataset can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), the dataset can be downloaded on [FigShare](https://figshare.com/articles/dataset/Protocol_data_R_version_/13020569).
+2. We load the dataset containing inhibitory neurons from the BICCN. The scripts used to build the dataset can be found on [Github](https://github.com/gillislab/MetaNeighbor-Protocol), the dataset can be downloaded on [FigShare](https://doi.org/10.6084/m9.figshare.13020569).
 
 ```{r load_biccn, message=FALSE}
 library(SingleCellExperiment)

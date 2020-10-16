@@ -264,7 +264,6 @@ This representation helps to rapidly identify a cell type's closest hits as well
 ```{r extract_metaclusters}
 mclusters = extractMetaClusters(best_hits, threshold = 0.7)
 mcsummary = scoreMetaClusters(mclusters, best_hits)
-mcsummary[mcsummary$meta_cluster != "outliers",]
 ```
 
 The _scoreMetaClusters_ provides a good summary of meta-clusters, ordering cell types by the number of datasets in which they replicate, then by average AUROC. We find 12 cell types that have strong support across at least 2 datasets, with 7 cell types replicating across all 4 datasets. 8 cell types are tagged as "outlier", indicating they had no strong match in any other dataset. These cell types usually contain doublets, low quality cells or contaminated cell types. To rapidly visualize the number of robust cell types, the replicability structure can be summarized as an Upset plot with the _plotUpset_ function.
