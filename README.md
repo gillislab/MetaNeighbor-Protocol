@@ -2,7 +2,7 @@
 
 In this repository, we present 3 protocols to illustrate how MetaNeighbor can be used to quantify and characterize cell type replicability across single cell transcriptomic datasets.
 
-To run the protocols, you will need to install the R or Python version of MetaNeighbor. Installation instructions are included in Protocol 1, but you can also install the development version of MetaNeighbor for [R](https://github.com/gillislab/MetaNeighbor) or [Python](https://github.com/gillislab/pyMN) by following the corresponding links (installation instructions are included in the README). All protocols have been tested on Windows 10, MacOS Catalina 10.15 and Linux RHEL7 and are expected to run on an up-to-date R or Python environment.
+To run the protocols, you will need to install the R or Python version of MetaNeighbor. Installation instructions are included in Protocol 1, but you can also install the development version of MetaNeighbor for [R](https://github.com/gillislab/MetaNeighbor) or [Python](https://github.com/gillislab/pyMN) by following the corresponding links (installation instructions are included in the README). All protocols have been tested on Windows 10, MacOS Catalina 10.15 and Linux RHEL7 and are expected to run on an up-to-date R (tested on versions 3.6 and 4.0) or Python environment.
 
 This repository also includes the script generating the data used in the protocols. Alternatively, you can access ready-to-use data from FigShare for [R](https://doi.org/10.6084/m9.figshare.13020569) or [Python](https://doi.org/10.6084/m9.figshare.13034171).
 
