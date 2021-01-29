@@ -10,11 +10,11 @@ graphics: yes
 
 # MetaNeighbor anticipated results
 
-Because MetaNeighbor is non-parametric, there is no fine-tuning to be done for any of the protocols presented here. Over time, we have identified two sources of potential error: bad highly variable gene selection and coding or formatting errors, which can be easily diagnosed by looking at AUROC heatmaps. We expect AUROCs to correctly represent global relationships between cell types and generalize across studies.
+Because MetaNeighbor is non-parametric, there is no fine-tuning to be done for any of the procedures presented here. Over time, we have identified two sources of potential error: bad highly variable gene selection and coding or formatting errors, which can be easily diagnosed by looking at AUROC heatmaps. We expect AUROCs to correctly represent global relationships between cell types and generalize across studies.
 
 ## Bad gene set selection
 
-The most common problem is to forget to select a set of highly variable genes, which is expected to dampen the impact of technical variability on neighbor voting. First, we present an example of a correct analysis, where we load the BICCN GABAergic neurons, select highly variable genes, and compute cluster similarities (see Protocol 1 for more details).
+The most common problem is to forget to select a set of highly variable genes, which is expected to dampen the impact of technical variability on neighbor voting. First, we present an example of a correct analysis, where we load the BICCN GABAergic neurons, select highly variable genes, and compute cluster similarities (see Procedure 1 for more details).
 
 
 ```{r bad_gene_set, message=FALSE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
@@ -44,7 +44,7 @@ We recognize strong replicability structure, evidenced by the presence of dark r
 
 ## No overlap between datasets
 
-The second problem occurs when there is no overlap between datasets. We illustate this problem with the data from Protocol 2, where we expect all cell types from the Tasic dataset to be present in the pre-trained BICCN model. According to our expectations, all cell types have strong hits with BICCN clusters and we see a hierarchical structure that is consistent with prior biological knowledge: lighter red blocks corresponding to MGE and CGE-derived inhibitory neurons. We compare with the same block of code, where we mistakenly keep non-neurons from the BICCN taxonomy instead of inhibitory neurons.
+The second problem occurs when there is no overlap between datasets. We illustate this problem with the data from Procedure 2, where we expect all cell types from the Tasic dataset to be present in the pre-trained BICCN model. According to our expectations, all cell types have strong hits with BICCN clusters and we see a hierarchical structure that is consistent with prior biological knowledge: lighter red blocks corresponding to MGE and CGE-derived inhibitory neurons. We compare with the same block of code, where we mistakenly keep non-neurons from the BICCN taxonomy instead of inhibitory neurons.
 The lack of biological overlap can be deduced from 3 factors: (a) low AUROC values overall, (b) almost no strong hits (contrary to expectations), (c) lack of expected hierarchical structure (MGE and CGE derived interneurons).
 
 ```{r bad_overlap, message=FALSE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
@@ -85,7 +85,7 @@ plotHeatmapPretrained(aurocs, cex = 0.7)
 
 ## Pretrained MetaNeighbor: bad name formatting
 
-The third problem we have encountered is a mistake that occurs when loading pre-trained model and forgetting to specify "check.names = FALSE", which is essential to preserve correct formatting of cell type names. Below, we present an example of correct code based on data from Protocol 2. We obtain the expected replicability structure, with evidence of strong hits across all cell types (see Protocol 2 for further details and analyses). When we forget "check.names = FALSE", MetaNeighbor is unable to correctly recognize dataset names and cell type names in the pre-trained model, the similarity computations become meaningless, leading to AUROC values that are essentially 0.5. This problem is easy to diagnose and fix, but can be very confusing when it occurs.
+The third problem we have encountered is a mistake that occurs when loading pre-trained model and forgetting to specify "check.names = FALSE", which is essential to preserve correct formatting of cell type names. Below, we present an example of correct code based on data from Procedure 2. We obtain the expected replicability structure, with evidence of strong hits across all cell types (see Procedure 2 for further details and analyses). When we forget "check.names = FALSE", MetaNeighbor is unable to correctly recognize dataset names and cell type names in the pre-trained model, the similarity computations become meaningless, leading to AUROC values that are essentially 0.5. This problem is easy to diagnose and fix, but can be very confusing when it occurs.
 
 ```{r bad_cluster_name, message=FALSE, fig.show = "hold", out.width = "50%", fig.width=7, fig.height=6.5}
 # GOOD
@@ -137,6 +137,6 @@ plotHeatmap((1+centroid_cor)/2, cex = 0.5)
 plotHeatmap(aurocs, cex = 0.5)
 ```
 
-Compared to correlations, AUROCs have one additional "parameter": the outgroup used for the prediction task. In Protocol 1, we illustrated how the outgroup can be controled and interpreted. A deviation from AUROC = 1 can thus be interpreted as a combination of two factors: lack of similarity between cell types and choice of outgroup (difficulty of prediction task). If the outgroup is well controled, AUROC values will generalize across studies and fundamentally indicate the quality of the clustering. For a given cell type in a given background (for example Sst cells in an unbiased sample of MOp interneurons), the similarity to Sst cells in another dataset (or any other interneuron type for that matter) should be in the range of similarity observed within the BICCN.
+Compared to correlations, AUROCs have one additional "parameter": the outgroup used for the prediction task. In Procedure 1, we illustrated how the outgroup can be controled and interpreted. A deviation from AUROC = 1 can thus be interpreted as a combination of two factors: lack of similarity between cell types and choice of outgroup (difficulty of prediction task). If the outgroup is well controled, AUROC values will generalize across studies and fundamentally indicate the quality of the clustering. For a given cell type in a given background (for example Sst cells in an unbiased sample of MOp interneurons), the similarity to Sst cells in another dataset (or any other interneuron type for that matter) should be in the range of similarity observed within the BICCN.
 
 As a robust alternative to centroid correlations, MetaNeighbor AUROCs can be applied to simple pre-processing tasks, such as identifying and selecting cell types that overlap between datasets before applying a merging framework. However, beyond the purely applicative viewpoint, we believe that MetaNeighbor-style AUROCs are a stepping stone toward a generalizable formalization of cell type similarity.
