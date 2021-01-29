@@ -7,6 +7,13 @@ functional_aurocs.txt
 
 *_files/
 *.md
+*.docx
+
+old/
+
+anticipated_results_figs/*.pdf
+anticipated_results_figs/*.csv
+anticipated_results_figs/*.txt
 
 data/biccn_hvgs.txt
 data/joint_annotation/
@@ -17,6 +24,8 @@ data/snCv2/
 data/snCv3M/
 data/snCv3Z/
 data/snSS/
+data/snmc/
+data/snatac/
 data/go_to_matrix.R
 data/go_mouse.mtx
 data/go_mouse_row_labels.txt
