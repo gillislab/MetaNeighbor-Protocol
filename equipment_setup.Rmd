@@ -1,0 +1,51 @@
+---
+title: "Scaling up reproducible research for single cell transcriptomics using MetaNeighbor (Equipment setup)"
+output:
+  pdf_document:
+    fig_caption: yes
+graphics: yes
+---
+
+```{r setup, include = FALSE}
+knit_print.data.frame = function(x, ...) {
+  res = paste(c("", "", knitr::kable(x, digits=2, row.names=FALSE)), collapse = "\n")
+  knitr::asis_output(res)
+}
+
+registerS3method(
+  "knit_print", "data.frame", knit_print.data.frame,
+  envir = asNamespace("knitr")
+)
+```
+
+# Equipment setup
+
+This section walks through the installation process of MetaNeighbor and the packages used in the protocol. The installation process takes 1-20 minutes, depending on the number of dependencies already available. All code blocks can be run in R command line, Rstudio, RMarkdown notebooks or a jupyter notebook with an R kernel. Important: the installation process may create conflicts in the notebook environment. We recommend running the installation process in a separate R shell or to restart the Rstudio R environment after the installation has completed and before starting one of the procedures.
+
+Start by installing the latest MetaNeighbor package from the Gillis lab GitHub page.
+
+```{r install_mn, message=FALSE, warning=FALSE}
+if (!require("devtools")) {
+  install.packages("devtools", quiet=TRUE)
+}
+devtools::install_github("gillislab/MetaNeighbor")
+```
+
+Note that the latest stable version of MetaNeighbor is also available through Bioconductor by running `BiocManager::install("MetaNeighbor")`. We recommend using the latest development version from Github, as some of the functionalities illustrated in this protocol require Bioconductor version 3.12 or higher to work (only available with R version 4.1 or higher).
+
+
+Next, install the following packages, which are not necessary to run MetaNeighbor itself, but are needed to run the protocol.
+
+```{r install_utility, message=FALSE, warning=FALSE}
+to_install = c("scRNAseq", "tidyverse", "org.Hs.eg.db", "UpSetR")
+installed = sapply(to_install, requireNamespace)
+if (sum(!installed) > 0) {
+    if (!requireNamespace("BiocManager", quietly = TRUE)) {
+        install.packages("BiocManager")
+        BiocManager::install()
+    }
+    BiocManager::install(to_install[!installed])
+}
+```
+
+Reminder: don't forget to restart the R session at this stage.
