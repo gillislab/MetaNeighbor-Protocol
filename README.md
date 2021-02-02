@@ -9,7 +9,7 @@ The [data/](data/) repository includes the scripts generating the data used in t
 
 The [pretrained_models/](pretrained_models/) repository includes ready-to-use models of the BICCN taxonomy for Procedure 2 ("Assessing cell type replicability against a pre-trained reference taxonomy"). Procedure 2 explains how to create these models in Section 1 ("Pre-train a reference MetaNeighbor model"), but you can also download the pre-trained models and skip to Section 2 ("Compare annotations to pre-trained taxonomy").
 
-The [anticipated_results_files/](anticipated_results_files/) repository includes scripts used to estimate the effect of batch effects on MetaNeighbor results in three scenarios: lower sensitivity (lower number of UMIs per cell), higher noise, and multi-modal analyses.
+The [anticipated_results_figs/](anticipated_results_figs/) repository includes scripts used to estimate the effect of batch effects on MetaNeighbor results in three scenarios: lower sensitivity (lower number of UMIs per cell), higher noise, and multi-modal analyses.
 
 
 ## Protocol description
