@@ -1,4 +1,4 @@
-These scripts were used to generate the datasets used in the MetaNeighbor protocol "Scaling up reproducible research for single cell transcriptomics using MetaNeighbor". If you wish to regenerate the datasets, run the scripts as indicated below (expected run time ~ 1 hour). Alternatively, we stored the datasets [here] for direct download.
+These scripts were used to generate the datasets used in the MetaNeighbor protocol "Scaling up reproducible research for single cell transcriptomics using MetaNeighbor". If you wish to regenerate the datasets, run the scripts as indicated below (expected run time ~ 1 hour). Alternatively, we stored the datasets [here](https://doi.org/doi:10.6084/m9.figshare.13020569.v2) for direct download.
 
 ## Regenerate datasets for the MetaNeighbor protocol
 
