@@ -126,8 +126,10 @@ There are three alternatives to separate true hits from false positive hits. Fir
 chandelier_hits = aurocs["tasic|Pvalb Cpne5",]
 is_chandelier = getCellType(names(chandelier_hits)) == "Pvalb Vipr2_2"
 hist(-log10(1-chandelier_hits[!is_chandelier]), breaks = 20,
-     xlab = "-log10(1-AUROC)", xlim = range(-log10(1-chandelier_hits)),
+     xlab = "Replicability (-log10(1-AUROC))",
+     xlim = range(-log10(1-chandelier_hits)),
      main = "AUROC for Pvalb Cpne5 - Pvalb Vipr2_2 hits")
+box(bty = "L")
 abline(v = -log10(1-chandelier_hits[is_chandelier]), col = "red")
 ```
 
